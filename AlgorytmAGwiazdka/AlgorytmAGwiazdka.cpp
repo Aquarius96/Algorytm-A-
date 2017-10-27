@@ -34,7 +34,6 @@ Point meta(6, 1);
 vector<Point> otwarta;
 vector<Point> zamknieta;
 Point current(0, 0);
-Point current2(0, 0);
 
 int koszt(Point aktualny)
 {
