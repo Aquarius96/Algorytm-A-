@@ -4,7 +4,6 @@
 #include<vector>
 #include "ConsoleColor.h"
 
-
 using namespace std;
 
 class Point {
@@ -31,7 +30,7 @@ Point::Point(int a, int b)
 }
 
 Point start(19, 0);
-Point meta(0, 0);
+Point meta(6, 1);
 vector<Point> otwarta;
 vector<Point> zamknieta;
 Point current(0, 0);
@@ -58,9 +57,9 @@ int koszt(Point aktualny)
 		}
 		else return 1;	
 	}
-	
 	return licznik;
 }
+
 double heurystyka(Point aktualny)
 {
 	return sqrt(pow(double(aktualny.x - start.x), 2.0) + pow(double(aktualny.y - start.y), 2.0));
@@ -70,12 +69,13 @@ double ObliczWartosc(Point aktualny)
 {
 	return koszt(aktualny) + heurystyka(aktualny);
 }
-bool SprawdzOtwarta(Point obecny)
+
+bool SprawdzListe(Point obecny, vector<Point> lista)
 {
 	bool wynik;
-	for (int i = 0; i<otwarta.size(); i++)
+	for (int i = 0; i<lista.size(); i++)
 	{
-		if ((otwarta[i].x == obecny.x && otwarta[i].y == obecny.y) || (start.x == obecny.x && start.y == obecny.y))
+		if ((lista[i].x == obecny.x && lista[i].y == obecny.y) || (start.x == obecny.x && start.y == obecny.y))
 		{
 			return false;
 		}
@@ -86,67 +86,42 @@ bool SprawdzOtwarta(Point obecny)
 	}
 	return wynik;
 }
-bool SprawdzZamknieta(Point obecny)
+
+void Wstaw(Point obecny,bool wynik)
 {
-	bool wynik;
-	for (int i = 0; i<zamknieta.size(); i++)
+	if (wynik)
 	{
-		if (zamknieta[i].x == obecny.x && zamknieta[i].y == obecny.y)
+		if (obecny.policzone)
 		{
-			return false;
+			if (obecny.wartosc>ObliczWartosc(obecny))
+			{
+				obecny.setParent(current.x, current.y);
+				obecny.wartosc = ObliczWartosc(obecny);
+			}
 		}
 		else
 		{
-			wynik = true;
+			obecny.setParent(current.x, current.y);
+			obecny.wartosc = ObliczWartosc(obecny);
 		}
+		otwarta.push_back(obecny);
 	}
-	return wynik;
 }
-void Wyszukaj(Point obecny) 
+
+void WstawBezPowtarzania(Point obecny) 
 {
 	if (otwarta.size()>0)
 	{
-		bool wynik = SprawdzOtwarta(obecny) && SprawdzZamknieta(obecny);
-		if (wynik)
-		{
-			if (obecny.policzone)
-			{
-				if (obecny.wartosc>ObliczWartosc(obecny))
-				{
-					obecny.setParent(current.x, current.y);
-					obecny.wartosc=ObliczWartosc(obecny);
-				}
-			}
-			else
-			{
-				obecny.setParent(current.x, current.y);
-				obecny.wartosc=ObliczWartosc(obecny);
-			}
-			otwarta.push_back(obecny);
-		}
+		bool wynik = SprawdzListe(obecny,otwarta) && SprawdzListe(obecny,zamknieta);
+		Wstaw(obecny, wynik);
 	}
 	else
 	{
-		bool wynik = SprawdzZamknieta(obecny);
-		if (wynik)
-		{
-			if (obecny.policzone)
-			{
-				if (obecny.wartosc>ObliczWartosc(obecny))
-				{
-					obecny.setParent(current.x, current.y);
-					obecny.wartosc=ObliczWartosc(obecny);
-				}
-			}
-			else
-			{
-				obecny.setParent(current.x, current.y);
-				obecny.wartosc=ObliczWartosc(obecny);
-			}
-			otwarta.push_back(obecny);
-		}
+		bool wynik = SprawdzListe(obecny,zamknieta);
+		Wstaw(obecny, wynik);
 	}
 }
+
 void RozejrzyjSie(Point pkt, double **G)
 {
 	int x = pkt.x;
@@ -154,24 +129,25 @@ void RozejrzyjSie(Point pkt, double **G)
 	if (y>0 && G[x][y - 1] != 5 && !pkt.odwiedzony)
 	{
 		Point obecny(x, y - 1);
-		Wyszukaj(obecny);
+		WstawBezPowtarzania(obecny);
 	}
 	if (x>0 && G[x - 1][y] != 5 && !pkt.odwiedzony)
 	{
 		Point obecny(x - 1, y);
-		Wyszukaj(obecny);
+		WstawBezPowtarzania(obecny);
 	}
 	if (y<19 && G[x][y + 1] != 5 && !pkt.odwiedzony)
 	{
 		Point obecny(x, y + 1);
-		Wyszukaj(obecny);
+		WstawBezPowtarzania(obecny);
 	}
 	if (x<19 && G[x + 1][y] != 5 && !pkt.odwiedzony)
 	{
 		Point obecny(x + 1, y);
-		Wyszukaj(obecny);
+		WstawBezPowtarzania(obecny);
 	}
 }
+
 void WybierzPunkt()
 {
 	double wynik = otwarta[0].wartosc;
@@ -194,6 +170,7 @@ void WybierzPunkt()
 		}
 	}
 }
+
 void Wroc(double **G)
 {
 	int x = current.x;
@@ -207,16 +184,14 @@ void Wroc(double **G)
 				G[x][y] = 3;
 				x = zamknieta[i].xParent;
 				y = zamknieta[i].yParent;
-				current.x=x;
-				current.y=y;
-				current.setParent(zamknieta[i].x, zamknieta[i].y);
 				break;
 			}
 		}
 		G[x][y] = 3;
 	}
 }
-void PoruszSie(double **G)
+
+void ObliczTrase(double **G)
 {
 	current.x=start.x;
 	current.y=start.y;
@@ -237,6 +212,7 @@ void PoruszSie(double **G)
 		cout << "niestety nie udalo sie dotrzec do celu";
 	}
 }
+
 void WypiszMape(double **G)
 {
 	for (int i = 0; i<20; i++)
@@ -258,12 +234,14 @@ void WypiszMape(double **G)
 		}cout << "\n";
 	}
 }
-double** ZrobMape(int wym1, int wym2, string fileName) {
+
+double** ZrobMape(int wym1, int wym2, string fileName) 
+{
 	int rows = wym2;
 	double **G;
 	G = new double*[rows];
 	while (rows--) G[rows] = new double[wym1];
-	std::ifstream plik(fileName.c_str());
+	ifstream plik(fileName.c_str());
 	for (unsigned int i = 0; i<wym2; i++)
 	{
 		for (unsigned int j = 0; j<wym1; j++)
@@ -274,18 +252,18 @@ double** ZrobMape(int wym1, int wym2, string fileName) {
 	plik.close();
 	return G;
 }
+
 int main(void) {
 	string plik = "grid.txt";
 	int wym2 = 20;
 	int wym1 = 20;
 	double **Grid = ZrobMape(wym1, wym2, plik);
-	PoruszSie(Grid);
-	cout << "start" << start.x << " " << start.y << "\n";
-	cout << "meta" << meta.x << " " << meta.y << "\n";
+	ObliczTrase(Grid);
+	cout << "start " << start.x << " " << start.y << "\n";
+	cout << "meta  " << meta.x << " " << meta.y << "\n";
 	WypiszMape(Grid);
 	getchar();
 	return 0;
-	
 }
 
 
